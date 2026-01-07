@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env npx tsx
 
 import * as fs from "fs";
 import * as path from "path";
@@ -7,7 +7,7 @@ const args = process.argv.slice(2);
 const dir = args[0] || ".";
 const output = args[1] || "index.ts";
 
-function generateBarrel(dir, output) {
+function generateBarrel(dir: string, output: string): void {
   const files = fs
     .readdirSync(dir)
     .filter((file) => {
