@@ -3,18 +3,21 @@
 import * as fs from "fs";
 import * as path from "path";
 
-const args = process.argv.slice(2);
-const dir = args[0] || ".";
-const output = args[1] || "index.ts";
+const BARREL_FILE = "_barrel.ts";
+const TARGET_DIRS = ["pages", "posts", "components"];
 
-function generateBarrel(dir: string, output: string): void {
+function generateBarrel(dir: string): void {
   const files = fs
     .readdirSync(dir)
     .filter((file) => {
       const ext = path.extname(file);
-      return (ext === ".ts" || ext === ".tsx") && file !== output;
+      return (ext === ".ts" || ext === ".tsx") && file !== BARREL_FILE;
     })
     .sort();
+
+  if (files.length === 0) {
+    return;
+  }
 
   const exports = files.map((file) => {
     const ext = path.extname(file);
@@ -24,11 +27,46 @@ function generateBarrel(dir: string, output: string): void {
   });
 
   const content = `// Auto-generated barrel file\n${exports.join("\n")}\n`;
-  const outputPath = path.join(dir, output);
+  const outputPath = path.join(dir, BARREL_FILE);
 
   fs.writeFileSync(outputPath, content);
-  console.log(`Generated: ${outputPath}`);
-  console.log(`Exported ${files.length} files`);
+  console.log(`Generated: ${outputPath} (${files.length} files)`);
 }
 
-generateBarrel(dir, output);
+function findTargetDirs(baseDir: string): string[] {
+  const found: string[] = [];
+
+  function scan(dir: string) {
+    if (!fs.existsSync(dir)) return;
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const fullPath = path.join(dir, entry.name);
+        if (TARGET_DIRS.includes(entry.name)) {
+          found.push(fullPath);
+        }
+        scan(fullPath);
+      }
+    }
+  }
+
+  scan(baseDir);
+  return found;
+}
+
+// Main
+const args = process.argv.slice(2);
+
+if (args.length > 0) {
+  // 引数があれば指定ディレクトリのみ
+  generateBarrel(args[0]);
+} else {
+  // 引数なしなら規約ベースで自動検出
+  const dirs = findTargetDirs(".");
+  if (dirs.length === 0) {
+    console.log("No target directories found (pages, posts, components)");
+  } else {
+    dirs.forEach(generateBarrel);
+  }
+}
