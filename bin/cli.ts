@@ -145,17 +145,57 @@ function findBarrelDirs(baseDir: string): string[] {
   return found;
 }
 
-// Main
-const baseDir = process.argv[2] || ".";
+function initBarrel(dirs: string[]): void {
+  for (const dir of dirs) {
+    if (!fs.existsSync(dir)) {
+      console.error(`Directory not found: ${dir}`);
+      continue;
+    }
 
-if (!fs.existsSync(baseDir)) {
-  console.error(`Directory not found: ${baseDir}`);
-  process.exit(1);
+    const outputPath = path.join(dir, BARREL_FILE);
+    if (fs.existsSync(outputPath)) {
+      console.log(`Already exists: ${outputPath}`);
+      continue;
+    }
+
+    fs.writeFileSync(outputPath, "// Auto-generated barrel file\n");
+    console.log(`Created: ${outputPath}`);
+  }
 }
 
-const dirs = findBarrelDirs(baseDir);
-if (dirs.length === 0) {
-  console.log(`No ${BARREL_FILE} found in ${baseDir}`);
+function printUsage(): void {
+  console.log(`Usage:
+  barrels [basedir]        Update all _barrel.ts files
+  barrels init <dir> ...   Create _barrel.ts in specified directories
+`);
+}
+
+// Main
+const args = process.argv.slice(2);
+const command = args[0];
+
+if (command === "init") {
+  const dirs = args.slice(1);
+  if (dirs.length === 0) {
+    console.error("Error: specify directories to initialize");
+    printUsage();
+    process.exit(1);
+  }
+  initBarrel(dirs);
+} else if (command === "--help" || command === "-h") {
+  printUsage();
 } else {
-  dirs.forEach(generateBarrel);
+  const baseDir = command || ".";
+
+  if (!fs.existsSync(baseDir)) {
+    console.error(`Directory not found: ${baseDir}`);
+    process.exit(1);
+  }
+
+  const dirs = findBarrelDirs(baseDir);
+  if (dirs.length === 0) {
+    console.log(`No ${BARREL_FILE} found in ${baseDir}`);
+  } else {
+    dirs.forEach(generateBarrel);
+  }
 }
