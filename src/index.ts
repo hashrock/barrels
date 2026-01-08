@@ -2,7 +2,8 @@ import * as fs from "fs";
 import * as path from "path";
 import { parseModule, generateCode } from "magicast";
 
-export const BARREL_FILE = "_barrel.ts";
+export const BARREL_FILES = ["_barrel.ts", "_barrel.js"] as const;
+export type BarrelFileName = (typeof BARREL_FILES)[number];
 
 export interface ExportInfo {
   file: string;
@@ -15,12 +16,30 @@ export interface BarrelResult {
   fileCount: number;
 }
 
-export function getExpectedExports(dir: string): ExportInfo[] {
+function findBarrelFile(dir: string): string | null {
+  for (const file of BARREL_FILES) {
+    if (fs.existsSync(path.join(dir, file))) {
+      return file;
+    }
+  }
+  return null;
+}
+
+function getSourceExtensions(barrelFile: string): string[] {
+  if (barrelFile === "_barrel.ts") {
+    return [".ts", ".tsx"];
+  }
+  return [".js", ".jsx"];
+}
+
+export function getExpectedExports(dir: string, barrelFile: string): ExportInfo[] {
+  const sourceExts = getSourceExtensions(barrelFile);
+
   const files = fs
     .readdirSync(dir)
     .filter((file) => {
       const ext = path.extname(file);
-      return (ext === ".ts" || ext === ".tsx") && file !== BARREL_FILE;
+      return sourceExts.includes(ext) && file !== barrelFile;
     })
     .sort();
 
@@ -37,8 +56,13 @@ export function getExpectedExports(dir: string): ExportInfo[] {
 }
 
 export function generateBarrel(dir: string): BarrelResult {
-  const expected = getExpectedExports(dir);
-  const outputPath = path.join(dir, BARREL_FILE);
+  const barrelFile = findBarrelFile(dir);
+  if (!barrelFile) {
+    throw new Error(`No barrel file found in ${dir}`);
+  }
+
+  const expected = getExpectedExports(dir, barrelFile);
+  const outputPath = path.join(dir, barrelFile);
 
   let mod;
   let existingSources = new Set<string>();
@@ -118,16 +142,22 @@ export function generateBarrel(dir: string): BarrelResult {
   return { path: outputPath, fileCount: expected.length };
 }
 
-export function findBarrelDirs(baseDir: string): string[] {
-  const found: string[] = [];
+export interface BarrelDir {
+  dir: string;
+  barrelFile: string;
+}
+
+export function findBarrelDirs(baseDir: string): BarrelDir[] {
+  const found: BarrelDir[] = [];
 
   function scan(dir: string) {
     if (!fs.existsSync(dir)) return;
 
     const entries = fs.readdirSync(dir, { withFileTypes: true });
 
-    if (entries.some((e) => e.isFile() && e.name === BARREL_FILE)) {
-      found.push(dir);
+    const barrelFile = findBarrelFile(dir);
+    if (barrelFile) {
+      found.push({ dir, barrelFile });
     }
 
     for (const entry of entries) {
@@ -141,11 +171,17 @@ export function findBarrelDirs(baseDir: string): string[] {
   return found;
 }
 
-export function initBarrel(dir: string): { created: boolean; path: string } {
-  const outputPath = path.join(dir, BARREL_FILE);
+export function initBarrel(
+  dir: string,
+  type: "ts" | "js" = "ts"
+): { created: boolean; path: string } {
+  const barrelFile = type === "ts" ? "_barrel.ts" : "_barrel.js";
+  const outputPath = path.join(dir, barrelFile);
 
-  if (fs.existsSync(outputPath)) {
-    return { created: false, path: outputPath };
+  // Check if any barrel file already exists
+  const existing = findBarrelFile(dir);
+  if (existing) {
+    return { created: false, path: path.join(dir, existing) };
   }
 
   fs.writeFileSync(outputPath, "// Auto-generated barrel file\n");
@@ -154,7 +190,7 @@ export function initBarrel(dir: string): { created: boolean; path: string } {
 
 export function updateBarrels(baseDir: string): BarrelResult[] {
   const dirs = findBarrelDirs(baseDir);
-  return dirs.map(generateBarrel);
+  return dirs.map(({ dir }) => generateBarrel(dir));
 }
 
 export interface WatchOptions {
@@ -167,23 +203,25 @@ export function watchBarrels(
   options: WatchOptions = {}
 ): { close: () => void } {
   const { onUpdate, debounceMs = 100 } = options;
-  const dirs = findBarrelDirs(baseDir);
+  const barrelDirs = findBarrelDirs(baseDir);
   const watchers: fs.FSWatcher[] = [];
   const timeouts = new Map<string, NodeJS.Timeout>();
 
   // Initial update
-  for (const dir of dirs) {
+  for (const { dir } of barrelDirs) {
     const result = generateBarrel(dir);
     onUpdate?.(result);
   }
 
-  for (const dir of dirs) {
+  for (const { dir, barrelFile } of barrelDirs) {
+    const sourceExts = getSourceExtensions(barrelFile);
+
     const watcher = fs.watch(dir, (eventType, filename) => {
       if (!filename) return;
-      if (filename === BARREL_FILE) return;
+      if (BARREL_FILES.includes(filename as BarrelFileName)) return;
 
       const ext = path.extname(filename);
-      if (ext !== ".ts" && ext !== ".tsx") return;
+      if (!sourceExts.includes(ext)) return;
 
       if (timeouts.has(dir)) {
         clearTimeout(timeouts.get(dir)!);
