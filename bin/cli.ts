@@ -2,10 +2,9 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { parseModule, generateCode, builders } from "magicast";
+import { parseModule, generateCode } from "magicast";
 
 const BARREL_FILE = "_barrel.ts";
-const TARGET_DIRS = ["pages", "posts", "components"];
 
 interface ExportInfo {
   file: string;
@@ -36,47 +35,40 @@ function getExpectedExports(dir: string): ExportInfo[] {
 
 function generateBarrel(dir: string): void {
   const expected = getExpectedExports(dir);
-  if (expected.length === 0) {
-    return;
-  }
-
   const outputPath = path.join(dir, BARREL_FILE);
+
   let mod;
   let existingSources = new Set<string>();
 
-  // Try to parse existing barrel file
-  if (fs.existsSync(outputPath)) {
-    try {
-      const content = fs.readFileSync(outputPath, "utf-8");
-      mod = parseModule(content);
+  // Parse existing barrel file
+  const content = fs.readFileSync(outputPath, "utf-8");
+  try {
+    mod = parseModule(content);
 
-      // Collect existing export sources
-      for (const node of mod.$ast.body) {
-        if (node.type === "ExportNamedDeclaration" && node.source) {
-          existingSources.add(node.source.value);
-        }
+    // Collect existing export sources
+    for (const node of mod.$ast.body) {
+      if (node.type === "ExportNamedDeclaration" && node.source) {
+        existingSources.add(node.source.value);
       }
-
-      // Remove exports for files that no longer exist
-      const expectedSources = new Set(expected.map((e) => e.file));
-      mod.$ast.body = mod.$ast.body.filter((node: any) => {
-        if (node.type === "ExportNamedDeclaration" && node.source) {
-          return expectedSources.has(node.source.value);
-        }
-        return true; // Keep comments and other nodes
-      });
-
-      // Update existingSources after removal
-      existingSources = new Set<string>();
-      for (const node of mod.$ast.body) {
-        if (node.type === "ExportNamedDeclaration" && node.source) {
-          existingSources.add(node.source.value);
-        }
-      }
-    } catch {
-      mod = parseModule("// Auto-generated barrel file\n");
     }
-  } else {
+
+    // Remove exports for files that no longer exist
+    const expectedSources = new Set(expected.map((e) => e.file));
+    mod.$ast.body = mod.$ast.body.filter((node: any) => {
+      if (node.type === "ExportNamedDeclaration" && node.source) {
+        return expectedSources.has(node.source.value);
+      }
+      return true; // Keep comments and other nodes
+    });
+
+    // Update existingSources after removal
+    existingSources = new Set<string>();
+    for (const node of mod.$ast.body) {
+      if (node.type === "ExportNamedDeclaration" && node.source) {
+        existingSources.add(node.source.value);
+      }
+    }
+  } catch {
     mod = parseModule("// Auto-generated barrel file\n");
   }
 
@@ -125,23 +117,26 @@ function generateBarrel(dir: string): void {
 
   const { code } = generateCode(mod);
   fs.writeFileSync(outputPath, code);
-  console.log(`Generated: ${outputPath} (${expected.length} files)`);
+  console.log(`Updated: ${outputPath} (${expected.length} files)`);
 }
 
-function findTargetDirs(baseDir: string): string[] {
+function findBarrelDirs(baseDir: string): string[] {
   const found: string[] = [];
 
   function scan(dir: string) {
     if (!fs.existsSync(dir)) return;
 
     const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+    // Check if this directory has a _barrel.ts
+    if (entries.some((e) => e.isFile() && e.name === BARREL_FILE)) {
+      found.push(dir);
+    }
+
+    // Recursively scan subdirectories
     for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const fullPath = path.join(dir, entry.name);
-        if (TARGET_DIRS.includes(entry.name)) {
-          found.push(fullPath);
-        }
-        scan(fullPath);
+      if (entry.isDirectory() && entry.name !== "node_modules") {
+        scan(path.join(dir, entry.name));
       }
     }
   }
@@ -158,9 +153,9 @@ if (!fs.existsSync(baseDir)) {
   process.exit(1);
 }
 
-const dirs = findTargetDirs(baseDir);
+const dirs = findBarrelDirs(baseDir);
 if (dirs.length === 0) {
-  console.log(`No target directories found in ${baseDir} (pages, posts, components)`);
+  console.log(`No ${BARREL_FILE} found in ${baseDir}`);
 } else {
   dirs.forEach(generateBarrel);
 }
