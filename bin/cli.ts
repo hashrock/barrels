@@ -163,10 +163,25 @@ function initBarrel(dirs: string[]): void {
   }
 }
 
+function updateBarrels(baseDir: string): void {
+  if (!fs.existsSync(baseDir)) {
+    console.error(`Directory not found: ${baseDir}`);
+    process.exit(1);
+  }
+
+  const dirs = findBarrelDirs(baseDir);
+  if (dirs.length === 0) {
+    console.log(`No ${BARREL_FILE} found in ${baseDir}`);
+  } else {
+    dirs.forEach(generateBarrel);
+  }
+}
+
 function printUsage(): void {
   console.log(`Usage:
-  barrels [basedir]        Update all _barrel.ts files
-  barrels init <dir> ...   Create _barrel.ts in specified directories
+  barrels [basedir]              Update all _barrel.ts files (shorthand)
+  barrels update [basedir]       Update all _barrel.ts files
+  barrels init <dir> ...         Create _barrel.ts in specified directories
 `);
 }
 
@@ -182,20 +197,13 @@ if (command === "init") {
     process.exit(1);
   }
   initBarrel(dirs);
+} else if (command === "update") {
+  const baseDir = args[1] || ".";
+  updateBarrels(baseDir);
 } else if (command === "--help" || command === "-h") {
   printUsage();
 } else {
+  // Shorthand: barrels [basedir] = barrels update [basedir]
   const baseDir = command || ".";
-
-  if (!fs.existsSync(baseDir)) {
-    console.error(`Directory not found: ${baseDir}`);
-    process.exit(1);
-  }
-
-  const dirs = findBarrelDirs(baseDir);
-  if (dirs.length === 0) {
-    console.log(`No ${BARREL_FILE} found in ${baseDir}`);
-  } else {
-    dirs.forEach(generateBarrel);
-  }
+  updateBarrels(baseDir);
 }
