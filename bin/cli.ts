@@ -163,7 +163,7 @@ function initBarrel(dirs: string[]): void {
   }
 }
 
-function updateBarrels(baseDir: string): void {
+function updateBarrels(baseDir: string): string[] {
   if (!fs.existsSync(baseDir)) {
     console.error(`Directory not found: ${baseDir}`);
     process.exit(1);
@@ -175,12 +175,60 @@ function updateBarrels(baseDir: string): void {
   } else {
     dirs.forEach(generateBarrel);
   }
+  return dirs;
+}
+
+function watchBarrels(baseDir: string): void {
+  if (!fs.existsSync(baseDir)) {
+    console.error(`Directory not found: ${baseDir}`);
+    process.exit(1);
+  }
+
+  const dirs = findBarrelDirs(baseDir);
+  if (dirs.length === 0) {
+    console.log(`No ${BARREL_FILE} found in ${baseDir}`);
+    process.exit(1);
+  }
+
+  // Initial update
+  dirs.forEach(generateBarrel);
+
+  console.log(`\nWatching ${dirs.length} directories for changes...`);
+  console.log("Press Ctrl+C to stop\n");
+
+  // Debounce map
+  const timeouts = new Map<string, NodeJS.Timeout>();
+
+  for (const dir of dirs) {
+    fs.watch(dir, (eventType, filename) => {
+      if (!filename) return;
+      if (filename === BARREL_FILE) return;
+
+      const ext = path.extname(filename);
+      if (ext !== ".ts" && ext !== ".tsx") return;
+
+      // Debounce updates
+      const key = dir;
+      if (timeouts.has(key)) {
+        clearTimeout(timeouts.get(key)!);
+      }
+
+      timeouts.set(
+        key,
+        setTimeout(() => {
+          generateBarrel(dir);
+          timeouts.delete(key);
+        }, 100)
+      );
+    });
+  }
 }
 
 function printUsage(): void {
   console.log(`Usage:
   barrels [basedir]              Update all _barrel.ts files (shorthand)
   barrels update [basedir]       Update all _barrel.ts files
+  barrels watch [basedir]        Watch and auto-update on changes
   barrels init <dir> ...         Create _barrel.ts in specified directories
 `);
 }
@@ -200,6 +248,9 @@ if (command === "init") {
 } else if (command === "update") {
   const baseDir = args[1] || ".";
   updateBarrels(baseDir);
+} else if (command === "watch") {
+  const baseDir = args[1] || ".";
+  watchBarrels(baseDir);
 } else if (command === "--help" || command === "-h") {
   printUsage();
 } else {
