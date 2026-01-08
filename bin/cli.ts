@@ -2,11 +2,18 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import { parseModule, generateCode, builders } from "magicast";
 
 const BARREL_FILE = "_barrel.ts";
 const TARGET_DIRS = ["pages", "posts", "components"];
 
-function generateBarrel(dir: string): void {
+interface ExportInfo {
+  file: string;
+  metaAlias: string;
+  defaultAlias: string;
+}
+
+function getExpectedExports(dir: string): ExportInfo[] {
   const files = fs
     .readdirSync(dir)
     .filter((file) => {
@@ -15,22 +22,110 @@ function generateBarrel(dir: string): void {
     })
     .sort();
 
-  if (files.length === 0) {
-    return;
-  }
-
-  const exports = files.map((file) => {
+  return files.map((file) => {
     const ext = path.extname(file);
     const name = path.basename(file, ext);
     const pascalName = name.charAt(0).toUpperCase() + name.slice(1);
-    return `export { meta as ${name}Meta, default as ${pascalName} } from "./${file}";`;
+    return {
+      file: `./${file}`,
+      metaAlias: `${name}Meta`,
+      defaultAlias: pascalName,
+    };
+  });
+}
+
+function generateBarrel(dir: string): void {
+  const expected = getExpectedExports(dir);
+  if (expected.length === 0) {
+    return;
+  }
+
+  const outputPath = path.join(dir, BARREL_FILE);
+  let mod;
+  let existingSources = new Set<string>();
+
+  // Try to parse existing barrel file
+  if (fs.existsSync(outputPath)) {
+    try {
+      const content = fs.readFileSync(outputPath, "utf-8");
+      mod = parseModule(content);
+
+      // Collect existing export sources
+      for (const node of mod.$ast.body) {
+        if (node.type === "ExportNamedDeclaration" && node.source) {
+          existingSources.add(node.source.value);
+        }
+      }
+
+      // Remove exports for files that no longer exist
+      const expectedSources = new Set(expected.map((e) => e.file));
+      mod.$ast.body = mod.$ast.body.filter((node: any) => {
+        if (node.type === "ExportNamedDeclaration" && node.source) {
+          return expectedSources.has(node.source.value);
+        }
+        return true; // Keep comments and other nodes
+      });
+
+      // Update existingSources after removal
+      existingSources = new Set<string>();
+      for (const node of mod.$ast.body) {
+        if (node.type === "ExportNamedDeclaration" && node.source) {
+          existingSources.add(node.source.value);
+        }
+      }
+    } catch {
+      mod = parseModule("// Auto-generated barrel file\n");
+    }
+  } else {
+    mod = parseModule("// Auto-generated barrel file\n");
+  }
+
+  // Add missing exports
+  for (const exp of expected) {
+    if (!existingSources.has(exp.file)) {
+      const exportNode = {
+        type: "ExportNamedDeclaration",
+        specifiers: [
+          {
+            type: "ExportSpecifier",
+            local: { type: "Identifier", name: "meta" },
+            exported: { type: "Identifier", name: exp.metaAlias },
+          },
+          {
+            type: "ExportSpecifier",
+            local: { type: "Identifier", name: "default" },
+            exported: { type: "Identifier", name: exp.defaultAlias },
+          },
+        ],
+        source: { type: "Literal", value: exp.file },
+      };
+      mod.$ast.body.push(exportNode);
+    }
+  }
+
+  // Sort exports by source
+  const comments: any[] = [];
+  const exports: any[] = [];
+
+  for (const node of mod.$ast.body) {
+    if (node.type === "ExportNamedDeclaration") {
+      exports.push(node);
+    } else {
+      comments.push(node);
+    }
+  }
+
+  exports.sort((a, b) => {
+    const aSource = a.source?.value || "";
+    const bSource = b.source?.value || "";
+    return aSource.localeCompare(bSource);
   });
 
-  const content = `// Auto-generated barrel file\n${exports.join("\n")}\n`;
-  const outputPath = path.join(dir, BARREL_FILE);
+  mod.$ast.body = [...comments, ...exports];
 
-  fs.writeFileSync(outputPath, content);
-  console.log(`Generated: ${outputPath} (${files.length} files)`);
+  const { code } = generateCode(mod);
+  fs.writeFileSync(outputPath, code);
+  console.log(`Generated: ${outputPath} (${expected.length} files)`);
 }
 
 function findTargetDirs(baseDir: string): string[] {
