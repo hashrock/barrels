@@ -56,17 +56,16 @@ function findTargetDirs(baseDir: string): string[] {
 }
 
 // Main
-const args = process.argv.slice(2);
+const baseDir = process.argv[2] || ".";
 
-if (args.length > 0) {
-  // 引数があれば指定ディレクトリのみ
-  generateBarrel(args[0]);
+if (!fs.existsSync(baseDir)) {
+  console.error(`Directory not found: ${baseDir}`);
+  process.exit(1);
+}
+
+const dirs = findTargetDirs(baseDir);
+if (dirs.length === 0) {
+  console.log(`No target directories found in ${baseDir} (pages, posts, components)`);
 } else {
-  // 引数なしなら規約ベースで自動検出
-  const dirs = findTargetDirs(".");
-  if (dirs.length === 0) {
-    console.log("No target directories found (pages, posts, components)");
-  } else {
-    dirs.forEach(generateBarrel);
-  }
+  dirs.forEach(generateBarrel);
 }
