@@ -1,19 +1,26 @@
 {
   "name": "barrels",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "Barrel file generator for SSG",
+  "bin": {
+    "barrels": "./bin/cli.ts"
   },
-  "keywords": [],
+  "scripts": {
+    "barrels": "tsx bin/cli.ts"
+  },
+  "keywords": [
+    "barrel",
+    "ssg",
+    "typescript"
+  ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
+  "dependencies": {
+    "tsx": "^4.21.0"
+  },
   "devDependencies": {
     "@types/node": "^25.0.3",
-    "ts-node": "^10.9.2",
-    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }
