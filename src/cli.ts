@@ -18,6 +18,8 @@ function printUsage(): void {
   barrels watch [basedir]        Watch and auto-update on changes
   barrels init <dir> ...         Create _barrel.ts in specified directories
   barrels init --js <dir> ...    Create _barrel.js in specified directories
+  barrels studio [basedir]       Start web UI for editing barrels
+  barrels studio [basedir] -p <port>  Start on custom port (default: 3456)
 `);
 }
 
@@ -83,6 +85,22 @@ function cmdWatch(baseDir: string): void {
   });
 }
 
+async function cmdStudio(baseDir: string, port: number): Promise<void> {
+  const resolved = resolveDir(baseDir);
+  if (!fs.existsSync(resolved)) {
+    console.error(`Directory not found: ${resolved}`);
+    process.exit(1);
+  }
+
+  const { startStudio } = await import("./studio/server.js");
+  const server = startStudio(resolved, port);
+
+  process.on("SIGINT", () => {
+    server.close();
+    process.exit(0);
+  });
+}
+
 // Main
 const args = process.argv.slice(2);
 const command = args[0];
@@ -111,6 +129,21 @@ if (command === "init") {
 } else if (command === "watch") {
   const baseDir = args[1] || ".";
   cmdWatch(baseDir);
+} else if (command === "studio") {
+  let baseDir = ".";
+  let port = 3456;
+
+  const restArgs = args.slice(1);
+  for (let i = 0; i < restArgs.length; i++) {
+    if (restArgs[i] === "-p" || restArgs[i] === "--port") {
+      port = parseInt(restArgs[i + 1], 10) || 3456;
+      i++;
+    } else if (!restArgs[i].startsWith("-")) {
+      baseDir = restArgs[i];
+    }
+  }
+
+  cmdStudio(baseDir, port);
 } else if (command === "--help" || command === "-h") {
   printUsage();
 } else {

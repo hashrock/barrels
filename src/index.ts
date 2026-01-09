@@ -1,6 +1,11 @@
 import * as fs from "fs";
 import * as path from "path";
 import { parseModule, generateCode } from "magicast";
+import {
+  extractMetaFromFile,
+  mergeMetaProperties,
+  generateMetaInterface,
+} from "./meta.js";
 
 export const BARREL_FILES = ["_barrel.ts", "_barrel.js"] as const;
 export type BarrelFileName = (typeof BARREL_FILES)[number];
@@ -25,7 +30,7 @@ function findBarrelFile(dir: string): string | null {
   return null;
 }
 
-function getSourceExtensions(barrelFile: string): string[] {
+export function getSourceExtensions(barrelFile: string): string[] {
   if (barrelFile === "_barrel.ts") {
     return [".ts", ".tsx"];
   }
@@ -58,6 +63,44 @@ export function getExpectedExports(
   });
 }
 
+/**
+ * Get array name from directory name
+ */
+function getArrayName(dir: string): string {
+  return path.basename(dir);
+}
+
+/**
+ * Generate Meta interface and array export code
+ */
+function generateMetaAndArrayCode(
+  dir: string,
+  expected: ExportInfo[],
+): { interfaceCode: string; arrayCode: string } {
+  // Extract meta from all source files
+  const metaList: Record<string, unknown>[] = [];
+  for (const exp of expected) {
+    const filePath = path.join(dir, exp.file.replace("./", ""));
+    const meta = extractMetaFromFile(filePath);
+    if (meta) {
+      metaList.push(meta);
+    }
+  }
+
+  // Generate Meta interface
+  const properties = mergeMetaProperties(metaList);
+  const interfaceCode = generateMetaInterface(properties);
+
+  // Generate array export
+  const arrayName = getArrayName(dir);
+  const arrayItems = expected
+    .map((e) => `  { meta: ${e.metaAlias}, Component: ${e.defaultAlias} }`)
+    .join(",\n");
+  const arrayCode = `export const ${arrayName} = [\n${arrayItems},\n];`;
+
+  return { interfaceCode, arrayCode };
+}
+
 export function generateBarrel(dir: string): BarrelResult {
   const barrelFile = findBarrelFile(dir);
   if (!barrelFile) {
@@ -85,6 +128,23 @@ export function generateBarrel(dir: string): BarrelResult {
     ast.body = ast.body.filter((node: any) => {
       if (node.type === "ExportNamedDeclaration" && node.source) {
         return expectedSources.has(node.source.value);
+      }
+      // Remove existing interface and array declarations
+      if (
+        node.type === "ExportNamedDeclaration" &&
+        node.declaration?.type === "TSInterfaceDeclaration" &&
+        node.declaration?.id?.name === "Meta"
+      ) {
+        return false;
+      }
+      if (
+        node.type === "ExportNamedDeclaration" &&
+        node.declaration?.type === "VariableDeclaration"
+      ) {
+        const decl = node.declaration.declarations[0];
+        if (decl?.id?.name === getArrayName(dir)) {
+          return false;
+        }
       }
       return true;
     });
@@ -142,7 +202,18 @@ export function generateBarrel(dir: string): BarrelResult {
 
   ast.body = [...comments, ...exports];
 
-  const { code } = generateCode(mod);
+  // Generate code from AST
+  let { code } = generateCode(mod);
+
+  // Generate and append Meta interface and array export
+  if (expected.length > 0) {
+    const { interfaceCode, arrayCode } = generateMetaAndArrayCode(
+      dir,
+      expected,
+    );
+    code = code.trimEnd() + "\n\n" + interfaceCode + "\n\n" + arrayCode + "\n";
+  }
+
   fs.writeFileSync(outputPath, code);
 
   return { path: outputPath, fileCount: expected.length };
@@ -253,3 +324,11 @@ export function watchBarrels(
     },
   };
 }
+
+// Re-export meta utilities for external use
+export {
+  extractMetaFromFile,
+  mergeMetaProperties,
+  generateMetaInterface,
+  inferType,
+} from "./meta.js";

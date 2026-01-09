@@ -9,6 +9,7 @@ export interface BarrelResult {
     path: string;
     fileCount: number;
 }
+export declare function getSourceExtensions(barrelFile: string): string[];
 export declare function getExpectedExports(dir: string, barrelFile: string): ExportInfo[];
 export declare function generateBarrel(dir: string): BarrelResult;
 export interface BarrelDir {
@@ -28,3 +29,4 @@ export interface WatchOptions {
 export declare function watchBarrels(baseDir: string, options?: WatchOptions): {
     close: () => void;
 };
+export { extractMetaFromFile, mergeMetaProperties, generateMetaInterface, inferType, } from "./meta.js";
