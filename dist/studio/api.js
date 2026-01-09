@@ -3,6 +3,7 @@ import * as path from "path";
 import { parseModule, generateCode } from "magicast";
 import { findBarrelDirs, getExpectedExports, generateBarrel, } from "../index.js";
 import { extractMetaFromFile } from "../meta.js";
+import { getModuleAst, isExportNamedDeclaration, isVariableDeclaration, } from "../ast.js";
 /**
  * Get all barrels with their files and meta
  */
@@ -40,11 +41,12 @@ export function getBarrel(baseDir, barrelPath) {
 export function updateFileMeta(filePath, meta) {
     const content = fs.readFileSync(filePath, "utf-8");
     const mod = parseModule(content, { sourceFileName: filePath });
-    const ast = mod.$ast;
+    const ast = getModuleAst(mod);
     // Find and update the meta export
     for (const node of ast.body) {
-        if (node.type === "ExportNamedDeclaration" &&
-            node.declaration?.type === "VariableDeclaration") {
+        if (isExportNamedDeclaration(node) &&
+            node.declaration &&
+            isVariableDeclaration(node.declaration)) {
             for (const decl of node.declaration.declarations) {
                 if (decl.id?.name === "meta") {
                     // Rebuild the object expression with new values

@@ -2,6 +2,13 @@ import * as fs from "fs";
 import * as path from "path";
 import { parseModule, generateCode } from "magicast";
 import { extractMetaFromFile, mergeMetaProperties, generateMetaInterface, } from "./meta.js";
+import { isExportNamedDeclaration, getModuleAst, } from "./ast.js";
+function getSourceValue(node) {
+    if (node.source?.type === "Literal" && typeof node.source.value === "string") {
+        return node.source.value;
+    }
+    return undefined;
+}
 export const BARREL_FILES = ["_barrel.ts", "_barrel.js"];
 function findBarrelFile(dir) {
     for (const file of BARREL_FILES) {
@@ -79,26 +86,33 @@ export function generateBarrel(dir) {
     const content = fs.readFileSync(outputPath, "utf-8");
     try {
         mod = parseModule(content);
-        const ast = mod.$ast;
+        const ast = getModuleAst(mod);
         for (const node of ast.body) {
-            if (node.type === "ExportNamedDeclaration" && node.source) {
-                existingSources.add(node.source.value);
+            if (isExportNamedDeclaration(node)) {
+                const sourceValue = getSourceValue(node);
+                if (sourceValue) {
+                    existingSources.add(sourceValue);
+                }
             }
         }
         const expectedSources = new Set(expected.map((e) => e.file));
         ast.body = ast.body.filter((node) => {
-            if (node.type === "ExportNamedDeclaration" && node.source) {
-                return expectedSources.has(node.source.value);
+            if (isExportNamedDeclaration(node)) {
+                const sourceValue = getSourceValue(node);
+                if (sourceValue) {
+                    return expectedSources.has(sourceValue);
+                }
             }
             // Remove existing interface and array declarations
-            if (node.type === "ExportNamedDeclaration" &&
+            if (isExportNamedDeclaration(node) &&
                 node.declaration?.type === "TSInterfaceDeclaration" &&
-                node.declaration?.id?.name === "Meta") {
+                node.declaration.id?.name === "Meta") {
                 return false;
             }
-            if (node.type === "ExportNamedDeclaration" &&
+            if (isExportNamedDeclaration(node) &&
                 node.declaration?.type === "VariableDeclaration") {
-                const decl = node.declaration.declarations[0];
+                const declaration = node.declaration;
+                const decl = declaration.declarations[0];
                 if (decl?.id?.name === getArrayName(dir)) {
                     return false;
                 }
@@ -107,15 +121,18 @@ export function generateBarrel(dir) {
         });
         existingSources = new Set();
         for (const node of ast.body) {
-            if (node.type === "ExportNamedDeclaration" && node.source) {
-                existingSources.add(node.source.value);
+            if (isExportNamedDeclaration(node)) {
+                const sourceValue = getSourceValue(node);
+                if (sourceValue) {
+                    existingSources.add(sourceValue);
+                }
             }
         }
     }
     catch {
         mod = parseModule("// Auto-generated barrel file\n");
     }
-    const ast = mod.$ast;
+    const ast = getModuleAst(mod);
     for (const exp of expected) {
         if (!existingSources.has(exp.file)) {
             const exportNode = {
@@ -140,7 +157,7 @@ export function generateBarrel(dir) {
     const comments = [];
     const exports = [];
     for (const node of ast.body) {
-        if (node.type === "ExportNamedDeclaration") {
+        if (isExportNamedDeclaration(node)) {
             exports.push(node);
         }
         else {
@@ -148,8 +165,8 @@ export function generateBarrel(dir) {
         }
     }
     exports.sort((a, b) => {
-        const aSource = a.source?.value || "";
-        const bSource = b.source?.value || "";
+        const aSource = getSourceValue(a) || "";
+        const bSource = getSourceValue(b) || "";
         return aSource.localeCompare(bSource);
     });
     ast.body = [...comments, ...exports];

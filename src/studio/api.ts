@@ -8,6 +8,13 @@ import {
   generateBarrel,
 } from "../index.js";
 import { extractMetaFromFile } from "../meta.js";
+import {
+  AstNode,
+  ObjectExpressionNode,
+  getModuleAst,
+  isExportNamedDeclaration,
+  isVariableDeclaration,
+} from "../ast.js";
 
 export interface BarrelInfo {
   dir: string;
@@ -66,13 +73,14 @@ export function updateFileMeta(
 ): void {
   const content = fs.readFileSync(filePath, "utf-8");
   const mod = parseModule(content, { sourceFileName: filePath });
-  const ast = mod.$ast as any;
+  const ast = getModuleAst(mod);
 
   // Find and update the meta export
   for (const node of ast.body) {
     if (
-      node.type === "ExportNamedDeclaration" &&
-      node.declaration?.type === "VariableDeclaration"
+      isExportNamedDeclaration(node) &&
+      node.declaration &&
+      isVariableDeclaration(node.declaration)
     ) {
       for (const decl of node.declaration.declarations) {
         if (decl.id?.name === "meta") {
@@ -91,7 +99,7 @@ export function updateFileMeta(
 /**
  * Build AST ObjectExpression from a plain object
  */
-function buildObjectExpression(obj: Record<string, unknown>): any {
+function buildObjectExpression(obj: Record<string, unknown>): ObjectExpressionNode {
   return {
     type: "ObjectExpression",
     properties: Object.entries(obj).map(([key, value]) => ({
@@ -109,7 +117,7 @@ function buildObjectExpression(obj: Record<string, unknown>): any {
 /**
  * Build AST node for a value
  */
-function buildValueNode(value: unknown): any {
+function buildValueNode(value: unknown): AstNode {
   if (value === null) {
     return { type: "Literal", value: null };
   }

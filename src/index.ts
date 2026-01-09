@@ -6,6 +6,28 @@ import {
   mergeMetaProperties,
   generateMetaInterface,
 } from "./meta.js";
+import {
+  AstNode,
+  ExportNamedDeclarationNode,
+  ModuleAst,
+  VariableDeclarationNode,
+  isExportNamedDeclaration,
+  getModuleAst,
+} from "./ast.js";
+
+type ExportSpecifierNode = {
+  type: "ExportSpecifier";
+  local: { type: "Identifier"; name: string };
+  exported: { type: "Identifier"; name: string };
+};
+type TSInterfaceDeclarationNode = AstNode & { id?: { type: "Identifier"; name: string } };
+
+function getSourceValue(node: ExportNamedDeclarationNode): string | undefined {
+  if (node.source?.type === "Literal" && typeof node.source.value === "string") {
+    return node.source.value;
+  }
+  return undefined;
+}
 
 export const BARREL_FILES = ["_barrel.ts", "_barrel.js"] as const;
 export type BarrelFileName = (typeof BARREL_FILES)[number];
@@ -116,32 +138,39 @@ export function generateBarrel(dir: string): BarrelResult {
   const content = fs.readFileSync(outputPath, "utf-8");
   try {
     mod = parseModule(content);
-    const ast = mod.$ast as any;
+    const ast = getModuleAst(mod);
 
     for (const node of ast.body) {
-      if (node.type === "ExportNamedDeclaration" && node.source) {
-        existingSources.add(node.source.value);
+      if (isExportNamedDeclaration(node)) {
+        const sourceValue = getSourceValue(node);
+        if (sourceValue) {
+          existingSources.add(sourceValue);
+        }
       }
     }
 
     const expectedSources = new Set(expected.map((e) => e.file));
-    ast.body = ast.body.filter((node: any) => {
-      if (node.type === "ExportNamedDeclaration" && node.source) {
-        return expectedSources.has(node.source.value);
+    ast.body = ast.body.filter((node) => {
+      if (isExportNamedDeclaration(node)) {
+        const sourceValue = getSourceValue(node);
+        if (sourceValue) {
+          return expectedSources.has(sourceValue);
+        }
       }
       // Remove existing interface and array declarations
       if (
-        node.type === "ExportNamedDeclaration" &&
+        isExportNamedDeclaration(node) &&
         node.declaration?.type === "TSInterfaceDeclaration" &&
-        node.declaration?.id?.name === "Meta"
+        (node.declaration as TSInterfaceDeclarationNode).id?.name === "Meta"
       ) {
         return false;
       }
       if (
-        node.type === "ExportNamedDeclaration" &&
+        isExportNamedDeclaration(node) &&
         node.declaration?.type === "VariableDeclaration"
       ) {
-        const decl = node.declaration.declarations[0];
+        const declaration = node.declaration as VariableDeclarationNode;
+        const decl = declaration.declarations[0];
         if (decl?.id?.name === getArrayName(dir)) {
           return false;
         }
@@ -151,19 +180,22 @@ export function generateBarrel(dir: string): BarrelResult {
 
     existingSources = new Set<string>();
     for (const node of ast.body) {
-      if (node.type === "ExportNamedDeclaration" && node.source) {
-        existingSources.add(node.source.value);
+      if (isExportNamedDeclaration(node)) {
+        const sourceValue = getSourceValue(node);
+        if (sourceValue) {
+          existingSources.add(sourceValue);
+        }
       }
     }
   } catch {
     mod = parseModule("// Auto-generated barrel file\n");
   }
 
-  const ast = mod.$ast as any;
+  const ast = getModuleAst(mod);
 
   for (const exp of expected) {
     if (!existingSources.has(exp.file)) {
-      const exportNode = {
+      const exportNode: ExportNamedDeclarationNode = {
         type: "ExportNamedDeclaration",
         specifiers: [
           {
@@ -183,11 +215,11 @@ export function generateBarrel(dir: string): BarrelResult {
     }
   }
 
-  const comments: any[] = [];
-  const exports: any[] = [];
+  const comments: AstNode[] = [];
+  const exports: ExportNamedDeclarationNode[] = [];
 
   for (const node of ast.body) {
-    if (node.type === "ExportNamedDeclaration") {
+    if (isExportNamedDeclaration(node)) {
       exports.push(node);
     } else {
       comments.push(node);
@@ -195,8 +227,8 @@ export function generateBarrel(dir: string): BarrelResult {
   }
 
   exports.sort((a, b) => {
-    const aSource = a.source?.value || "";
-    const bSource = b.source?.value || "";
+    const aSource = getSourceValue(a) || "";
+    const bSource = getSourceValue(b) || "";
     return aSource.localeCompare(bSource);
   });
 

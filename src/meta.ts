@@ -1,5 +1,19 @@
 import * as fs from "fs";
 import { parseModule } from "magicast";
+import {
+  AstNode,
+  LiteralNode,
+  ObjectExpressionNode,
+  getLiteralValue,
+  getModuleAst,
+  getPropertyKey,
+  isArrayExpression,
+  isExportNamedDeclaration,
+  isObjectExpression,
+  isPropertyNode,
+  isUnaryExpression,
+  isVariableDeclaration,
+} from "./ast.js";
 
 export interface MetaProperty {
   name: string;
@@ -47,16 +61,18 @@ export function extractMetaFromFile(
 
     // magicast returns a Proxy, we need to extract the actual value
     // by accessing $ast and evaluating the literal values
-    const ast = (mod as any).$ast;
+    const ast = getModuleAst(mod as { $ast: unknown });
     for (const node of ast.body) {
       if (
-        node.type === "ExportNamedDeclaration" &&
-        node.declaration?.type === "VariableDeclaration"
+        isExportNamedDeclaration(node) &&
+        node.declaration &&
+        isVariableDeclaration(node.declaration)
       ) {
         for (const decl of node.declaration.declarations) {
           if (
             decl.id?.name === "meta" &&
-            decl.init?.type === "ObjectExpression"
+            decl.init &&
+            isObjectExpression(decl.init)
           ) {
             return extractObjectLiteral(decl.init);
           }
@@ -73,17 +89,15 @@ export function extractMetaFromFile(
  * Extract object literal from AST ObjectExpression node
  * Handles both Babel AST (ObjectProperty) and ESTree (Property) formats
  */
-function extractObjectLiteral(node: any): Record<string, unknown> {
+function extractObjectLiteral(node: ObjectExpressionNode): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const prop of node.properties) {
     // Handle both ObjectProperty (Babel) and Property (ESTree)
-    if (
-      (prop.type === "Property" || prop.type === "ObjectProperty") &&
-      prop.key
-    ) {
-      const key =
-        prop.key.type === "Identifier" ? prop.key.name : prop.key.value;
-      result[key] = extractValue(prop.value);
+    if (isPropertyNode(prop) && prop.key && prop.value) {
+      const key = getPropertyKey(prop.key);
+      if (key) {
+        result[key] = extractValue(prop.value);
+      }
     }
   }
   return result;
@@ -93,26 +107,35 @@ function extractObjectLiteral(node: any): Record<string, unknown> {
  * Extract value from AST node
  * Handles both Babel and ESTree AST formats
  */
-function extractValue(node: any): unknown {
+function extractValue(node: AstNode): unknown {
   switch (node.type) {
     case "Literal":
-      return node.value;
+      return (node as LiteralNode).value;
     case "StringLiteral":
-      return node.value;
+      {
+        const value = getLiteralValue(node);
+        return typeof value === "string" ? value : undefined;
+      }
     case "NumericLiteral":
-      return node.value;
+      {
+        const value = getLiteralValue(node);
+        return typeof value === "number" ? value : undefined;
+      }
     case "BooleanLiteral":
-      return node.value;
+      {
+        const value = getLiteralValue(node);
+        return typeof value === "boolean" ? value : undefined;
+      }
     case "NullLiteral":
       return null;
     case "ArrayExpression":
-      return (node.elements || []).map((el: any) =>
-        el ? extractValue(el) : null,
-      );
+      if (!isArrayExpression(node)) return [];
+      return node.elements.map((el) => (el ? extractValue(el) : null));
     case "ObjectExpression":
+      if (!isObjectExpression(node)) return undefined;
       return extractObjectLiteral(node);
     case "UnaryExpression":
-      if (node.operator === "-") {
+      if (isUnaryExpression(node) && node.operator === "-") {
         const arg = extractValue(node.argument);
         if (typeof arg === "number") return -arg;
       }

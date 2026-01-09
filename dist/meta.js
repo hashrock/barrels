@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import { parseModule } from "magicast";
+import { getLiteralValue, getModuleAst, getPropertyKey, isArrayExpression, isExportNamedDeclaration, isObjectExpression, isPropertyNode, isUnaryExpression, isVariableDeclaration, } from "./ast.js";
 /**
  * Infer TypeScript type from a JavaScript value
  */
@@ -43,13 +44,15 @@ export function extractMetaFromFile(filePath) {
         });
         // magicast returns a Proxy, we need to extract the actual value
         // by accessing $ast and evaluating the literal values
-        const ast = mod.$ast;
+        const ast = getModuleAst(mod);
         for (const node of ast.body) {
-            if (node.type === "ExportNamedDeclaration" &&
-                node.declaration?.type === "VariableDeclaration") {
+            if (isExportNamedDeclaration(node) &&
+                node.declaration &&
+                isVariableDeclaration(node.declaration)) {
                 for (const decl of node.declaration.declarations) {
                     if (decl.id?.name === "meta" &&
-                        decl.init?.type === "ObjectExpression") {
+                        decl.init &&
+                        isObjectExpression(decl.init)) {
                         return extractObjectLiteral(decl.init);
                     }
                 }
@@ -69,10 +72,11 @@ function extractObjectLiteral(node) {
     const result = {};
     for (const prop of node.properties) {
         // Handle both ObjectProperty (Babel) and Property (ESTree)
-        if ((prop.type === "Property" || prop.type === "ObjectProperty") &&
-            prop.key) {
-            const key = prop.key.type === "Identifier" ? prop.key.name : prop.key.value;
-            result[key] = extractValue(prop.value);
+        if (isPropertyNode(prop) && prop.key && prop.value) {
+            const key = getPropertyKey(prop.key);
+            if (key) {
+                result[key] = extractValue(prop.value);
+            }
         }
     }
     return result;
@@ -86,19 +90,32 @@ function extractValue(node) {
         case "Literal":
             return node.value;
         case "StringLiteral":
-            return node.value;
+            {
+                const value = getLiteralValue(node);
+                return typeof value === "string" ? value : undefined;
+            }
         case "NumericLiteral":
-            return node.value;
+            {
+                const value = getLiteralValue(node);
+                return typeof value === "number" ? value : undefined;
+            }
         case "BooleanLiteral":
-            return node.value;
+            {
+                const value = getLiteralValue(node);
+                return typeof value === "boolean" ? value : undefined;
+            }
         case "NullLiteral":
             return null;
         case "ArrayExpression":
-            return (node.elements || []).map((el) => el ? extractValue(el) : null);
+            if (!isArrayExpression(node))
+                return [];
+            return node.elements.map((el) => (el ? extractValue(el) : null));
         case "ObjectExpression":
+            if (!isObjectExpression(node))
+                return undefined;
             return extractObjectLiteral(node);
         case "UnaryExpression":
-            if (node.operator === "-") {
+            if (isUnaryExpression(node) && node.operator === "-") {
                 const arg = extractValue(node.argument);
                 if (typeof arg === "number")
                     return -arg;
