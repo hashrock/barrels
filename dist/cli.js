@@ -1,5 +1,9 @@
 import * as fs from "fs";
+import * as path from "path";
 import { initBarrel, updateBarrels, watchBarrels, findBarrelDirs, } from "./index.js";
+function resolveDir(dir) {
+    return path.resolve(process.cwd(), dir);
+}
 function printUsage() {
     console.log(`Usage:
   barrels [basedir]              Update all barrel files (shorthand)
@@ -11,11 +15,12 @@ function printUsage() {
 }
 function cmdInit(dirs, type) {
     for (const dir of dirs) {
-        if (!fs.existsSync(dir)) {
-            console.error(`Directory not found: ${dir}`);
+        const resolved = resolveDir(dir);
+        if (!fs.existsSync(resolved)) {
+            console.error(`Directory not found: ${resolved}`);
             continue;
         }
-        const result = initBarrel(dir, type);
+        const result = initBarrel(resolved, type);
         if (result.created) {
             console.log(`Created: ${result.path}`);
         }
@@ -25,13 +30,14 @@ function cmdInit(dirs, type) {
     }
 }
 function cmdUpdate(baseDir) {
-    if (!fs.existsSync(baseDir)) {
-        console.error(`Directory not found: ${baseDir}`);
+    const resolved = resolveDir(baseDir);
+    if (!fs.existsSync(resolved)) {
+        console.error(`Directory not found: ${resolved}`);
         process.exit(1);
     }
-    const results = updateBarrels(baseDir);
+    const results = updateBarrels(resolved);
     if (results.length === 0) {
-        console.log(`No barrel files found in ${baseDir}`);
+        console.log(`No barrel files found in ${resolved}`);
     }
     else {
         for (const result of results) {
@@ -40,16 +46,17 @@ function cmdUpdate(baseDir) {
     }
 }
 function cmdWatch(baseDir) {
-    if (!fs.existsSync(baseDir)) {
-        console.error(`Directory not found: ${baseDir}`);
+    const resolved = resolveDir(baseDir);
+    if (!fs.existsSync(resolved)) {
+        console.error(`Directory not found: ${resolved}`);
         process.exit(1);
     }
-    const dirs = findBarrelDirs(baseDir);
+    const dirs = findBarrelDirs(resolved);
     if (dirs.length === 0) {
-        console.log(`No barrel files found in ${baseDir}`);
+        console.log(`No barrel files found in ${resolved}`);
         process.exit(1);
     }
-    const watcher = watchBarrels(baseDir, {
+    const watcher = watchBarrels(resolved, {
         onUpdate: (result) => {
             console.log(`Updated: ${result.path} (${result.fileCount} files)`);
         },
