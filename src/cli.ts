@@ -1,13 +1,10 @@
-#!/usr/bin/env -S node --import tsx
-
 import * as fs from "fs";
 import {
-  BARREL_FILES,
   initBarrel,
   updateBarrels,
   watchBarrels,
   findBarrelDirs,
-} from "../src/index.js";
+} from "./index.js";
 
 function printUsage(): void {
   console.log(`Usage:

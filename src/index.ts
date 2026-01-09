@@ -32,7 +32,10 @@ function getSourceExtensions(barrelFile: string): string[] {
   return [".js", ".jsx"];
 }
 
-export function getExpectedExports(dir: string, barrelFile: string): ExportInfo[] {
+export function getExpectedExports(
+  dir: string,
+  barrelFile: string,
+): ExportInfo[] {
   const sourceExts = getSourceExtensions(barrelFile);
 
   const files = fs
@@ -64,21 +67,22 @@ export function generateBarrel(dir: string): BarrelResult {
   const expected = getExpectedExports(dir, barrelFile);
   const outputPath = path.join(dir, barrelFile);
 
-  let mod;
+  let mod: ReturnType<typeof parseModule>;
   let existingSources = new Set<string>();
 
   const content = fs.readFileSync(outputPath, "utf-8");
   try {
     mod = parseModule(content);
+    const ast = mod.$ast as any;
 
-    for (const node of mod.$ast.body) {
+    for (const node of ast.body) {
       if (node.type === "ExportNamedDeclaration" && node.source) {
         existingSources.add(node.source.value);
       }
     }
 
     const expectedSources = new Set(expected.map((e) => e.file));
-    mod.$ast.body = mod.$ast.body.filter((node: any) => {
+    ast.body = ast.body.filter((node: any) => {
       if (node.type === "ExportNamedDeclaration" && node.source) {
         return expectedSources.has(node.source.value);
       }
@@ -86,7 +90,7 @@ export function generateBarrel(dir: string): BarrelResult {
     });
 
     existingSources = new Set<string>();
-    for (const node of mod.$ast.body) {
+    for (const node of ast.body) {
       if (node.type === "ExportNamedDeclaration" && node.source) {
         existingSources.add(node.source.value);
       }
@@ -94,6 +98,8 @@ export function generateBarrel(dir: string): BarrelResult {
   } catch {
     mod = parseModule("// Auto-generated barrel file\n");
   }
+
+  const ast = mod.$ast as any;
 
   for (const exp of expected) {
     if (!existingSources.has(exp.file)) {
@@ -113,14 +119,14 @@ export function generateBarrel(dir: string): BarrelResult {
         ],
         source: { type: "Literal", value: exp.file },
       };
-      mod.$ast.body.push(exportNode);
+      ast.body.push(exportNode);
     }
   }
 
   const comments: any[] = [];
   const exports: any[] = [];
 
-  for (const node of mod.$ast.body) {
+  for (const node of ast.body) {
     if (node.type === "ExportNamedDeclaration") {
       exports.push(node);
     } else {
@@ -134,7 +140,7 @@ export function generateBarrel(dir: string): BarrelResult {
     return aSource.localeCompare(bSource);
   });
 
-  mod.$ast.body = [...comments, ...exports];
+  ast.body = [...comments, ...exports];
 
   const { code } = generateCode(mod);
   fs.writeFileSync(outputPath, code);
@@ -173,7 +179,7 @@ export function findBarrelDirs(baseDir: string): BarrelDir[] {
 
 export function initBarrel(
   dir: string,
-  type: "ts" | "js" = "ts"
+  type: "ts" | "js" = "ts",
 ): { created: boolean; path: string } {
   const barrelFile = type === "ts" ? "_barrel.ts" : "_barrel.js";
   const outputPath = path.join(dir, barrelFile);
@@ -200,7 +206,7 @@ export interface WatchOptions {
 
 export function watchBarrels(
   baseDir: string,
-  options: WatchOptions = {}
+  options: WatchOptions = {},
 ): { close: () => void } {
   const { onUpdate, debounceMs = 100 } = options;
   const barrelDirs = findBarrelDirs(baseDir);
@@ -233,7 +239,7 @@ export function watchBarrels(
           const result = generateBarrel(dir);
           onUpdate?.(result);
           timeouts.delete(dir);
-        }, debounceMs)
+        }, debounceMs),
       );
     });
     watchers.push(watcher);
