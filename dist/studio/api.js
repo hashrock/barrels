@@ -101,9 +101,9 @@ function buildValueNode(value) {
  * Create a new file with template
  */
 export function createFile(barrelDir, fileName, meta) {
-    // Determine file extension based on barrel type
-    const barrelFile = fs.readdirSync(barrelDir).find((f) => f.startsWith("_barrel."));
-    const isTs = barrelFile === "_barrel.ts";
+    // Determine file extension based on index type
+    const barrelFile = fs.readdirSync(barrelDir).find((f) => f.startsWith("_index."));
+    const isTs = barrelFile === "_index.ts";
     const ext = isTs ? ".tsx" : ".jsx";
     // Ensure fileName has correct extension
     let finalName = fileName;
