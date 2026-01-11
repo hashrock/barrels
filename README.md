@@ -1,20 +1,20 @@
-# Barrels
+# Metacolle
 
-Barrel file generator for SSG (Static Site Generator) projects.
+Meta collection file generator for SSG (Static Site Generator) projects.
 
 ## Concept
 
 **フォルダの下に似た構造のファイルがあれば、それはコレクションである。**
 
-スキーマを定義するまでもなく、同じフォルダに似た構造のファイルが複数あったら、それはもうコレクションです。Barrelsはそれを自動的に認識し、配列としてexportしてくれます。
+スキーマを定義するまでもなく、同じフォルダに似た構造のファイルが複数あったら、それはもうコレクションです。Metacolleはそれを自動的に認識し、配列としてexportしてくれます。
 
-`export const meta` があるファイルがあれば、そのフォルダは自動的にコレクションとして認識されます。`_barrel.ts` を手動で作る必要はありません。
+`export const meta` があるファイルがあれば、そのフォルダは自動的にコレクションとして認識されます。`_index.ts` を手動で作る必要はありません。
 
 ```
 posts/
-  page1.tsx   ← { title, createdAt, tags }
-  page2.tsx   ← { title, createdAt, tags }
-  page3.tsx   ← { title, createdAt }  ← tagsがなくてもOK
+  page1.tsx   <- { title, createdAt, tags }
+  page2.tsx   <- { title, createdAt, tags }
+  page3.tsx   <- { title, createdAt }  <- tagsがなくてもOK
 ```
 
 ↓ 自動生成
@@ -43,7 +43,7 @@ export const posts = [
 ### 使う側はシンプル
 
 ```typescript
-import { posts } from "./posts/_barrel";
+import { posts } from "./posts/_index";
 
 // 記事一覧
 posts.map(({ meta }) => (
@@ -64,53 +64,53 @@ posts.map(({ meta, Component }) => (
 ## Features
 
 - **Auto-detect collections** - `export const meta` があるファイルがあれば自動的にコレクションとして認識
-- **Automatic barrel file generation** - ディレクトリをスキャンして全TS/JSファイルのexportを生成
+- **Automatic index file generation** - ディレクトリをスキャンして全TS/JSファイルのexportを生成
 - **Collection as array** - `{ meta, Component }` 形式の配列を自動生成
 - **Auto type inference** - metaの型を自動推論、存在しないプロパティはoptionalに
 - **Watch mode** - ファイル変更を監視して自動更新
-- **Barrels Studio** - Web UIでmetaをテーブル編集
+- **Metacolle Studio** - Web UIでmetaをテーブル編集
 - **TypeScript and JavaScript support** - `.ts`/`.tsx` と `.js`/`.jsx` の両方に対応
 
 ## Installation
 
 ```bash
-npm install barrels
+npm install metacolle
 ```
 
 ## CLI Usage
 
 ### Update
 
-`export const meta` があるファイルを含むディレクトリを自動検出し、barrelファイルを生成・更新:
+`export const meta` があるファイルを含むディレクトリを自動検出し、indexファイルを生成・更新:
 
 ```bash
-barrels update
+metacolle update
 # または単に
-barrels
+metacolle
 ```
 
 ### Initialize (optional)
 
-明示的に `_barrel.ts` を作成したい場合:
+明示的に `_index.ts` を作成したい場合:
 
 ```bash
-barrels init ./posts
+metacolle init ./posts
 ```
 
-JavaScript用に `_barrel.js` を作成:
+JavaScript用に `_index.js` を作成:
 
 ```bash
-barrels init --js ./posts
+metacolle init --js ./posts
 ```
 
-> Note: `init` は必須ではありません。`export const meta` があるファイルがあれば、`update` 時に自動的に `_barrel.ts` が生成されます。
+> Note: `init` は必須ではありません。`export const meta` があるファイルがあれば、`update` 時に自動的に `_index.ts` が生成されます。
 
 ### Watch
 
 ファイル変更を監視して自動更新:
 
 ```bash
-barrels watch
+metacolle watch
 ```
 
 ### Studio
@@ -118,7 +118,7 @@ barrels watch
 Web UIでmetaを編集:
 
 ```bash
-barrels studio
+metacolle studio
 ```
 
 `http://localhost:3456` でテーブル形式のエディタが起動します。
@@ -131,16 +131,12 @@ barrels studio
 
 ```typescript
 import {
-  initBarrel,
   updateBarrels,
   watchBarrels,
   generateBarrel,
-} from "barrels";
+} from "metacolle";
 
-// Barrel初期化
-initBarrel("./posts", "ts");
-
-// 全barrelファイルを更新
+// 全indexファイルを更新
 const results = updateBarrels("./src");
 
 // 監視モード
@@ -175,10 +171,10 @@ export default function MyFirstPost() {
 }
 ```
 
-Barrelsは `_barrel.ts` を生成:
+Metacolleは `_index.ts` を生成:
 
 ```typescript
-// posts/_barrel.ts (auto-generated)
+// posts/_index.ts (auto-generated)
 export { meta as myFirstPostMeta, default as MyFirstPost } from "./my-first-post.tsx";
 
 export interface Meta {

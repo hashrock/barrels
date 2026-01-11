@@ -1,7 +1,7 @@
 {
-  "name": "barrels",
+  "name": "metacolle",
   "version": "1.0.0",
-  "description": "Barrel file generator for SSG",
+  "description": "Meta collection file generator for SSG",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,7 +12,7 @@
     }
   },
   "bin": {
-    "barrels": "./bin/cli.js"
+    "metacolle": "./bin/cli.js"
   },
   "files": [
     "dist",
@@ -24,7 +24,8 @@
     "prepublishOnly": "npm run build"
   },
   "keywords": [
-    "barrel",
+    "meta",
+    "collection",
     "ssg",
     "typescript"
   ],

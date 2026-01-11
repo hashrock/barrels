@@ -12,11 +12,11 @@ function resolveDir(dir: string): string {
 
 function printUsage(): void {
   console.log(`Usage:
-  barrels [basedir]              Update all barrel files (shorthand)
-  barrels update [basedir]       Update all barrel files
-  barrels watch [basedir]        Watch and auto-update on changes
-  barrels studio [basedir]       Start web UI for editing barrels
-  barrels studio [basedir] -p <port>  Start on custom port (default: 3456)
+  metacolle [basedir]              Update all index files (shorthand)
+  metacolle update [basedir]       Update all index files
+  metacolle watch [basedir]        Watch and auto-update on changes
+  metacolle studio [basedir]       Start web UI for editing collections
+  metacolle studio [basedir] -p <port>  Start on custom port (default: 3456)
 `);
 }
 
@@ -29,7 +29,7 @@ function cmdUpdate(baseDir: string): void {
 
   const results = updateBarrels(resolved);
   if (results.length === 0) {
-    console.log(`No barrel files found in ${resolved}`);
+    console.log(`No index files found in ${resolved}`);
   } else {
     for (const result of results) {
       console.log(`Updated: ${result.path} (${result.fileCount} files)`);
@@ -46,7 +46,7 @@ function cmdWatch(baseDir: string): void {
 
   const dirs = findBarrelDirs(resolved);
   if (dirs.length === 0) {
-    console.log(`No barrel files found in ${resolved}`);
+    console.log(`No index files found in ${resolved}`);
     process.exit(1);
   }
 

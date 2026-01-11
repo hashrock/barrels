@@ -211,7 +211,7 @@ export function startStudio(baseDir: string, port = 3456): http.Server {
   });
 
   server.listen(port, () => {
-    console.log(`\nBarrels Studio running at http://localhost:${port}`);
+    console.log(`\nMetacolle Studio running at http://localhost:${port}`);
     console.log(`Watching: ${path.resolve(baseDir)}`);
     console.log("\nPress Ctrl+C to stop\n");
   });
