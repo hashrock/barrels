@@ -327,23 +327,6 @@ export function findBarrelDirs(baseDir: string): BarrelDir[] {
   return found;
 }
 
-export function initBarrel(
-  dir: string,
-  type: "ts" | "js" = "ts",
-): { created: boolean; path: string } {
-  const barrelFile = type === "ts" ? "_barrel.ts" : "_barrel.js";
-  const outputPath = path.join(dir, barrelFile);
-
-  // Check if any barrel file already exists
-  const existing = findBarrelFile(dir);
-  if (existing) {
-    return { created: false, path: path.join(dir, existing) };
-  }
-
-  fs.writeFileSync(outputPath, "// Auto-generated barrel file\n");
-  return { created: true, path: outputPath };
-}
-
 export function updateBarrels(baseDir: string): BarrelResult[] {
   const dirs = findBarrelDirs(baseDir);
   return dirs.map(({ dir, barrelFile }) => generateBarrel(dir, barrelFile));
