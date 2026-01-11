@@ -1,3 +1,13 @@
+/**
+ * Convert kebab-case to camelCase
+ * e.g., "post-hello-world" -> "postHelloWorld"
+ */
+export declare function toCamelCase(str: string): string;
+/**
+ * Convert kebab-case to PascalCase
+ * e.g., "post-hello-world" -> "PostHelloWorld"
+ */
+export declare function toPascalCase(str: string): string;
 export declare const BARREL_FILES: readonly ["_index.ts", "_index.js"];
 export type BarrelFileName = (typeof BARREL_FILES)[number];
 export interface ExportInfo {

@@ -3,6 +3,21 @@ import * as path from "path";
 import { parseModule, generateCode } from "magicast";
 import { extractMetaFromFile, mergeMetaProperties, generateMetaInterface, hasMetaExport, } from "./meta.js";
 import { isExportNamedDeclaration, getModuleAst, } from "./ast.js";
+/**
+ * Convert kebab-case to camelCase
+ * e.g., "post-hello-world" -> "postHelloWorld"
+ */
+export function toCamelCase(str) {
+    return str.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
+}
+/**
+ * Convert kebab-case to PascalCase
+ * e.g., "post-hello-world" -> "PostHelloWorld"
+ */
+export function toPascalCase(str) {
+    const camel = toCamelCase(str);
+    return camel.charAt(0).toUpperCase() + camel.slice(1);
+}
 function getSourceValue(node) {
     if (node.source?.type === "Literal" && typeof node.source.value === "string") {
         return node.source.value;
@@ -44,10 +59,11 @@ export function getExpectedExports(dir, barrelFile) {
     return files.map((file) => {
         const ext = path.extname(file);
         const name = path.basename(file, ext);
-        const pascalName = name.charAt(0).toUpperCase() + name.slice(1);
+        const camelName = toCamelCase(name);
+        const pascalName = toPascalCase(name);
         return {
             file: `./${file}`,
-            metaAlias: `${name}Meta`,
+            metaAlias: `${camelName}Meta`,
             defaultAlias: pascalName,
         };
     });

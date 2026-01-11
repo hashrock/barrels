@@ -21,6 +21,23 @@ type ExportSpecifierNode = {
   local: { type: "Identifier"; name: string };
   exported: { type: "Identifier"; name: string };
 };
+
+/**
+ * Convert kebab-case to camelCase
+ * e.g., "post-hello-world" -> "postHelloWorld"
+ */
+export function toCamelCase(str: string): string {
+  return str.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
+}
+
+/**
+ * Convert kebab-case to PascalCase
+ * e.g., "post-hello-world" -> "PostHelloWorld"
+ */
+export function toPascalCase(str: string): string {
+  const camel = toCamelCase(str);
+  return camel.charAt(0).toUpperCase() + camel.slice(1);
+}
 type TSInterfaceDeclarationNode = AstNode & { id?: { type: "Identifier"; name: string } };
 
 function getSourceValue(node: ExportNamedDeclarationNode): string | undefined {
@@ -88,10 +105,11 @@ export function getExpectedExports(
   return files.map((file) => {
     const ext = path.extname(file);
     const name = path.basename(file, ext);
-    const pascalName = name.charAt(0).toUpperCase() + name.slice(1);
+    const camelName = toCamelCase(name);
+    const pascalName = toPascalCase(name);
     return {
       file: `./${file}`,
-      metaAlias: `${name}Meta`,
+      metaAlias: `${camelName}Meta`,
       defaultAlias: pascalName,
     };
   });

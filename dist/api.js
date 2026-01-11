@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { parseModule, generateCode } from "magicast";
-import { findBarrelDirs, getExpectedExports, generateBarrel, } from "./index.js";
+import { findBarrelDirs, getExpectedExports, generateBarrel, toPascalCase, } from "./index.js";
 import { extractMetaFromFile } from "./meta.js";
 import { getModuleAst, isExportNamedDeclaration, isVariableDeclaration, } from "./ast.js";
 /**
@@ -111,9 +111,9 @@ export function createFile(barrelDir, fileName, meta) {
         finalName = fileName + ext;
     }
     const filePath = path.join(barrelDir, finalName);
-    // Generate component name from file name
+    // Generate component name from file name (convert kebab-case to PascalCase)
     const baseName = path.basename(finalName, path.extname(finalName));
-    const componentName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+    const componentName = toPascalCase(baseName);
     // Build meta object string
     const metaEntries = Object.entries(meta)
         .map(([k, v]) => `  ${k}: ${JSON.stringify(v)},`)
