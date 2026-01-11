@@ -11,7 +11,7 @@ export interface BarrelResult {
 }
 export declare function getSourceExtensions(barrelFile: string): string[];
 export declare function getExpectedExports(dir: string, barrelFile: string): ExportInfo[];
-export declare function generateBarrel(dir: string): BarrelResult;
+export declare function generateBarrel(dir: string, barrelFileOverride?: string): BarrelResult;
 export interface BarrelDir {
     dir: string;
     barrelFile: string;
@@ -29,4 +29,4 @@ export interface WatchOptions {
 export declare function watchBarrels(baseDir: string, options?: WatchOptions): {
     close: () => void;
 };
-export { extractMetaFromFile, mergeMetaProperties, generateMetaInterface, inferType, } from "./meta.js";
+export { extractMetaFromFile, hasMetaExport, mergeMetaProperties, generateMetaInterface, inferType, } from "./meta.js";

@@ -8,6 +8,11 @@ export interface MetaProperty {
  */
 export declare function inferType(value: unknown): string;
 /**
+ * Check if a file has an export const meta declaration
+ * This is a lightweight check that doesn't extract the actual value
+ */
+export declare function hasMetaExport(filePath: string): boolean;
+/**
  * Extract meta object from a source file using magicast
  */
 export declare function extractMetaFromFile(filePath: string): Record<string, unknown> | null;
