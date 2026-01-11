@@ -9,7 +9,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "declaration": true,
+    "jsx": "react-jsx"
   },
-  "include": ["src/**/*"],
-  "exclude": ["src/studio/ui/**/*"],
+  "include": ["src/**/*"]
 }

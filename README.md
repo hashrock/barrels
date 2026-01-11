@@ -107,7 +107,7 @@ Metacolleは**progressive typing**アプローチ：
 - **Collection as array** - `{ meta, Component }` 形式の配列を自動生成
 - **Auto type inference** - metaの型を自動推論、存在しないプロパティはoptionalに
 - **Watch mode** - ファイル変更を監視して自動更新
-- **Metacolle Studio** - Web UIでmetaをテーブル編集
+- **Interactive TUI** - Ink CLIでテーブル表示・編集
 - **TypeScript and JavaScript support** - `.ts`/`.tsx` と `.js`/`.jsx` の両方に対応
 
 ## Installation
@@ -118,28 +118,47 @@ npm install metacolle
 
 ## CLI Usage
 
+### Interactive Mode (TUI)
+
+インタラクティブなTUIモードでコレクションを閲覧・編集:
+
+```bash
+metacolle
+# または
+metacolle ./src
+```
+
+TUI操作:
+- `j/k` または矢印キー: ナビゲーション
+- `Enter`: 選択/編集
+- `Esc`: 戻る
+- `q`: 終了
+
 ### Update
 
 `export const meta` があるファイルを含むディレクトリを自動検出し、indexファイルを生成・更新:
 
 ```bash
 metacolle update
-# または単に
-metacolle
+metacolle update ./src
 ```
 
-### Initialize (optional)
+### List
 
-明示的に `_index.ts` を作成したい場合:
+コレクションの一覧を表示（非インタラクティブ）:
 
 ```bash
-metacolle init ./posts
+metacolle list
+metacolle list ./src
 ```
 
-JavaScript用に `_index.js` を作成:
+### Init
+
+既存ファイルにmetaテンプレートを追加:
 
 ```bash
-metacolle init --js ./posts
+metacolle init ./posts      # インタラクティブモード
+metacolle init ./posts -n   # 非インタラクティブ（デフォルトテンプレート）
 ```
 
 > Note: `init` は必須ではありません。`export const meta` があるファイルがあれば、`update` 時に自動的に `_index.ts` が生成されます。
@@ -150,21 +169,8 @@ metacolle init --js ./posts
 
 ```bash
 metacolle watch
+metacolle watch ./src
 ```
-
-### Studio
-
-Web UIでmetaを編集:
-
-```bash
-metacolle studio
-```
-
-`http://localhost:3456` でテーブル形式のエディタが起動します。
-
-- metaの値を編集
-- 新規ファイルの追加
-- ファイルの削除
 
 ## Library Usage
 

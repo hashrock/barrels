@@ -9,7 +9,7 @@ function getSourceValue(node) {
     }
     return undefined;
 }
-export const BARREL_FILES = ["_barrel.ts", "_barrel.js"];
+export const BARREL_FILES = ["_index.ts", "_index.js"];
 function findBarrelFile(dir) {
     for (const file of BARREL_FILES) {
         if (fs.existsSync(path.join(dir, file))) {
@@ -24,10 +24,10 @@ function findBarrelFile(dir) {
 function detectBarrelType(dir) {
     const entries = fs.readdirSync(dir);
     const hasTsFiles = entries.some((e) => e.endsWith(".ts") || e.endsWith(".tsx"));
-    return hasTsFiles ? "_barrel.ts" : "_barrel.js";
+    return hasTsFiles ? "_index.ts" : "_index.js";
 }
 export function getSourceExtensions(barrelFile) {
-    if (barrelFile === "_barrel.ts") {
+    if (barrelFile === "_index.ts") {
         return [".ts", ".tsx"];
     }
     return [".js", ".jsx"];
@@ -240,17 +240,6 @@ export function findBarrelDirs(baseDir) {
     }
     scan(baseDir);
     return found;
-}
-export function initBarrel(dir, type = "ts") {
-    const barrelFile = type === "ts" ? "_barrel.ts" : "_barrel.js";
-    const outputPath = path.join(dir, barrelFile);
-    // Check if any barrel file already exists
-    const existing = findBarrelFile(dir);
-    if (existing) {
-        return { created: false, path: path.join(dir, existing) };
-    }
-    fs.writeFileSync(outputPath, "// Auto-generated barrel file\n");
-    return { created: true, path: outputPath };
 }
 export function updateBarrels(baseDir) {
     const dirs = findBarrelDirs(baseDir);
