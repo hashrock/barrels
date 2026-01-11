@@ -30,7 +30,7 @@ function getSourceValue(node: ExportNamedDeclarationNode): string | undefined {
   return undefined;
 }
 
-export const BARREL_FILES = ["_barrel.ts", "_barrel.js"] as const;
+export const BARREL_FILES = ["_index.ts", "_index.js"] as const;
 export type BarrelFileName = (typeof BARREL_FILES)[number];
 
 export interface ExportInfo {
@@ -61,11 +61,11 @@ function detectBarrelType(dir: string): BarrelFileName {
   const hasTsFiles = entries.some(
     (e) => e.endsWith(".ts") || e.endsWith(".tsx"),
   );
-  return hasTsFiles ? "_barrel.ts" : "_barrel.js";
+  return hasTsFiles ? "_index.ts" : "_index.js";
 }
 
 export function getSourceExtensions(barrelFile: string): string[] {
-  if (barrelFile === "_barrel.ts") {
+  if (barrelFile === "_index.ts") {
     return [".ts", ".tsx"];
   }
   return [".js", ".jsx"];

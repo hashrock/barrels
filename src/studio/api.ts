@@ -144,9 +144,9 @@ export function createFile(
   fileName: string,
   meta: Record<string, unknown>
 ): string {
-  // Determine file extension based on barrel type
-  const barrelFile = fs.readdirSync(barrelDir).find((f) => f.startsWith("_barrel."));
-  const isTs = barrelFile === "_barrel.ts";
+  // Determine file extension based on index type
+  const barrelFile = fs.readdirSync(barrelDir).find((f) => f.startsWith("_index."));
+  const isTs = barrelFile === "_index.ts";
   const ext = isTs ? ".tsx" : ".jsx";
 
   // Ensure fileName has correct extension

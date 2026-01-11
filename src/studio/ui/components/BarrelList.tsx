@@ -11,7 +11,7 @@ export function BarrelList({ barrels, selectedPath, onSelect }: Props) {
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="px-4 py-3 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-800">Barrels</h2>
+        <h2 className="text-lg font-semibold text-gray-800">Collections</h2>
       </div>
       <ul className="divide-y divide-gray-100">
         {barrels.map((barrel) => (
@@ -36,7 +36,7 @@ export function BarrelList({ barrels, selectedPath, onSelect }: Props) {
       </ul>
       {barrels.length === 0 && (
         <div className="px-4 py-8 text-center text-gray-500">
-          No barrel files found
+          No collections found
         </div>
       )}
     </div>
