@@ -1,4 +1,4 @@
-export declare const BARREL_FILES: readonly ["_barrel.ts", "_barrel.js"];
+export declare const BARREL_FILES: readonly ["_index.ts", "_index.js"];
 export type BarrelFileName = (typeof BARREL_FILES)[number];
 export interface ExportInfo {
     file: string;
@@ -17,10 +17,6 @@ export interface BarrelDir {
     barrelFile: string;
 }
 export declare function findBarrelDirs(baseDir: string): BarrelDir[];
-export declare function initBarrel(dir: string, type?: "ts" | "js"): {
-    created: boolean;
-    path: string;
-};
 export declare function updateBarrels(baseDir: string): BarrelResult[];
 export interface WatchOptions {
     onUpdate?: (result: BarrelResult) => void;
