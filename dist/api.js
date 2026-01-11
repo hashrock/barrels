@@ -1,9 +1,9 @@
 import * as fs from "fs";
 import * as path from "path";
 import { parseModule, generateCode } from "magicast";
-import { findBarrelDirs, getExpectedExports, generateBarrel, } from "../index.js";
-import { extractMetaFromFile } from "../meta.js";
-import { getModuleAst, isExportNamedDeclaration, isVariableDeclaration, } from "../ast.js";
+import { findBarrelDirs, getExpectedExports, generateBarrel, } from "./index.js";
+import { extractMetaFromFile } from "./meta.js";
+import { getModuleAst, isExportNamedDeclaration, isVariableDeclaration, } from "./ast.js";
 /**
  * Get all barrels with their files and meta
  */
@@ -147,4 +147,38 @@ export function deleteFile(barrelDir, fileName) {
  */
 export function regenerateBarrel(dir) {
     generateBarrel(dir);
+}
+/**
+ * Add meta template to existing files in a directory
+ */
+export function initMeta(dir, template) {
+    const added = [];
+    const skipped = [];
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const sourceExts = [".ts", ".tsx", ".js", ".jsx"];
+    for (const entry of entries) {
+        if (!entry.isFile())
+            continue;
+        const ext = path.extname(entry.name);
+        if (!sourceExts.includes(ext))
+            continue;
+        if (entry.name.startsWith("_index."))
+            continue;
+        const filePath = path.join(dir, entry.name);
+        const content = fs.readFileSync(filePath, "utf-8");
+        // Check if meta already exists
+        if (content.includes("export const meta")) {
+            skipped.push(entry.name);
+            continue;
+        }
+        // Add meta export at the beginning
+        const metaEntries = Object.entries(template)
+            .map(([k, v]) => `  ${k}: ${JSON.stringify(v)},`)
+            .join("\n");
+        const metaCode = `export const meta = {\n${metaEntries}\n};\n\n`;
+        const newContent = metaCode + content;
+        fs.writeFileSync(filePath, newContent);
+        added.push(entry.name);
+    }
+    return { added, skipped };
 }

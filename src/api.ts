@@ -4,17 +4,16 @@ import { parseModule, generateCode } from "magicast";
 import {
   findBarrelDirs,
   getExpectedExports,
-  getSourceExtensions,
   generateBarrel,
-} from "../index.js";
-import { extractMetaFromFile } from "../meta.js";
+} from "./index.js";
+import { extractMetaFromFile } from "./meta.js";
 import {
   AstNode,
   ObjectExpressionNode,
   getModuleAst,
   isExportNamedDeclaration,
   isVariableDeclaration,
-} from "../ast.js";
+} from "./ast.js";
 
 export interface BarrelInfo {
   dir: string;
@@ -198,4 +197,47 @@ export function deleteFile(barrelDir: string, fileName: string): void {
  */
 export function regenerateBarrel(dir: string): void {
   generateBarrel(dir);
+}
+
+/**
+ * Add meta template to existing files in a directory
+ */
+export function initMeta(
+  dir: string,
+  template: Record<string, unknown>
+): { added: string[]; skipped: string[] } {
+  const added: string[] = [];
+  const skipped: string[] = [];
+
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const sourceExts = [".ts", ".tsx", ".js", ".jsx"];
+
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const ext = path.extname(entry.name);
+    if (!sourceExts.includes(ext)) continue;
+    if (entry.name.startsWith("_index.")) continue;
+
+    const filePath = path.join(dir, entry.name);
+    const content = fs.readFileSync(filePath, "utf-8");
+
+    // Check if meta already exists
+    if (content.includes("export const meta")) {
+      skipped.push(entry.name);
+      continue;
+    }
+
+    // Add meta export at the beginning
+    const metaEntries = Object.entries(template)
+      .map(([k, v]) => `  ${k}: ${JSON.stringify(v)},`)
+      .join("\n");
+
+    const metaCode = `export const meta = {\n${metaEntries}\n};\n\n`;
+    const newContent = metaCode + content;
+
+    fs.writeFileSync(filePath, newContent);
+    added.push(entry.name);
+  }
+
+  return { added, skipped };
 }

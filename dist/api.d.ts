@@ -33,3 +33,10 @@ export declare function deleteFile(barrelDir: string, fileName: string): void;
  * Regenerate barrel file for a directory
  */
 export declare function regenerateBarrel(dir: string): void;
+/**
+ * Add meta template to existing files in a directory
+ */
+export declare function initMeta(dir: string, template: Record<string, unknown>): {
+    added: string[];
+    skipped: string[];
+};
