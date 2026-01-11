@@ -8,6 +8,8 @@ Barrel file generator for SSG (Static Site Generator) projects.
 
 スキーマを定義するまでもなく、同じフォルダに似た構造のファイルが複数あったら、それはもうコレクションです。Barrelsはそれを自動的に認識し、配列としてexportしてくれます。
 
+`export const meta` があるファイルがあれば、そのフォルダは自動的にコレクションとして認識されます。`_barrel.ts` を手動で作る必要はありません。
+
 ```
 posts/
   page1.tsx   ← { title, createdAt, tags }
@@ -61,6 +63,7 @@ posts.map(({ meta, Component }) => (
 
 ## Features
 
+- **Auto-detect collections** - `export const meta` があるファイルがあれば自動的にコレクションとして認識
 - **Automatic barrel file generation** - ディレクトリをスキャンして全TS/JSファイルのexportを生成
 - **Collection as array** - `{ meta, Component }` 形式の配列を自動生成
 - **Auto type inference** - metaの型を自動推論、存在しないプロパティはoptionalに
@@ -76,9 +79,19 @@ npm install barrels
 
 ## CLI Usage
 
-### Initialize
+### Update
 
-`_barrel.ts` を作成:
+`export const meta` があるファイルを含むディレクトリを自動検出し、barrelファイルを生成・更新:
+
+```bash
+barrels update
+# または単に
+barrels
+```
+
+### Initialize (optional)
+
+明示的に `_barrel.ts` を作成したい場合:
 
 ```bash
 barrels init ./posts
@@ -90,15 +103,7 @@ JavaScript用に `_barrel.js` を作成:
 barrels init --js ./posts
 ```
 
-### Update
-
-全barrelファイルを更新:
-
-```bash
-barrels update
-# または単に
-barrels
-```
+> Note: `init` は必須ではありません。`export const meta` があるファイルがあれば、`update` 時に自動的に `_barrel.ts` が生成されます。
 
 ### Watch
 

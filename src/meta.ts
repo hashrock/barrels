@@ -48,6 +48,37 @@ export function inferType(value: unknown): string {
 }
 
 /**
+ * Check if a file has an export const meta declaration
+ * This is a lightweight check that doesn't extract the actual value
+ */
+export function hasMetaExport(filePath: string): boolean {
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const mod = parseModule(content, {
+      sourceFileName: filePath,
+    });
+
+    const ast = getModuleAst(mod as { $ast: unknown });
+    for (const node of ast.body) {
+      if (
+        isExportNamedDeclaration(node) &&
+        node.declaration &&
+        isVariableDeclaration(node.declaration)
+      ) {
+        for (const decl of node.declaration.declarations) {
+          if (decl.id?.name === "meta") {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Extract meta object from a source file using magicast
  */
 export function extractMetaFromFile(

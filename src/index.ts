@@ -5,6 +5,7 @@ import {
   extractMetaFromFile,
   mergeMetaProperties,
   generateMetaInterface,
+  hasMetaExport,
 } from "./meta.js";
 import {
   AstNode,
@@ -50,6 +51,17 @@ function findBarrelFile(dir: string): string | null {
     }
   }
   return null;
+}
+
+/**
+ * Detect the appropriate barrel file type based on existing files in directory
+ */
+function detectBarrelType(dir: string): BarrelFileName {
+  const entries = fs.readdirSync(dir);
+  const hasTsFiles = entries.some(
+    (e) => e.endsWith(".ts") || e.endsWith(".tsx"),
+  );
+  return hasTsFiles ? "_barrel.ts" : "_barrel.js";
 }
 
 export function getSourceExtensions(barrelFile: string): string[] {
@@ -123,10 +135,14 @@ function generateMetaAndArrayCode(
   return { interfaceCode, arrayCode };
 }
 
-export function generateBarrel(dir: string): BarrelResult {
-  const barrelFile = findBarrelFile(dir);
+export function generateBarrel(dir: string, barrelFileOverride?: string): BarrelResult {
+  // Use provided barrel file, or find existing, or detect based on source files
+  let barrelFile = barrelFileOverride || findBarrelFile(dir);
+  const needsCreation = !barrelFile;
+
   if (!barrelFile) {
-    throw new Error(`No barrel file found in ${dir}`);
+    // Auto-detect barrel file type based on existing source files
+    barrelFile = detectBarrelType(dir);
   }
 
   const expected = getExpectedExports(dir, barrelFile);
@@ -135,7 +151,12 @@ export function generateBarrel(dir: string): BarrelResult {
   let mod: ReturnType<typeof parseModule>;
   let existingSources = new Set<string>();
 
-  const content = fs.readFileSync(outputPath, "utf-8");
+  // Check if barrel file exists
+  const barrelExists = fs.existsSync(outputPath);
+  const content = barrelExists
+    ? fs.readFileSync(outputPath, "utf-8")
+    : "// Auto-generated barrel file\n";
+
   try {
     mod = parseModule(content);
     const ast = getModuleAst(mod);
@@ -256,6 +277,27 @@ export interface BarrelDir {
   barrelFile: string;
 }
 
+/**
+ * Check if a directory contains any files with meta exports
+ */
+function hasFilesWithMetaExport(dir: string): boolean {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const sourceExts = [".ts", ".tsx", ".js", ".jsx"];
+
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const ext = path.extname(entry.name);
+    if (!sourceExts.includes(ext)) continue;
+    if (BARREL_FILES.includes(entry.name as BarrelFileName)) continue;
+
+    const filePath = path.join(dir, entry.name);
+    if (hasMetaExport(filePath)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function findBarrelDirs(baseDir: string): BarrelDir[] {
   const found: BarrelDir[] = [];
 
@@ -264,9 +306,14 @@ export function findBarrelDirs(baseDir: string): BarrelDir[] {
 
     const entries = fs.readdirSync(dir, { withFileTypes: true });
 
+    // First check for explicit barrel file
     const barrelFile = findBarrelFile(dir);
     if (barrelFile) {
       found.push({ dir, barrelFile });
+    } else if (hasFilesWithMetaExport(dir)) {
+      // No barrel file, but has files with meta exports - treat as collection
+      const detectedBarrelFile = detectBarrelType(dir);
+      found.push({ dir, barrelFile: detectedBarrelFile });
     }
 
     for (const entry of entries) {
@@ -299,7 +346,7 @@ export function initBarrel(
 
 export function updateBarrels(baseDir: string): BarrelResult[] {
   const dirs = findBarrelDirs(baseDir);
-  return dirs.map(({ dir }) => generateBarrel(dir));
+  return dirs.map(({ dir, barrelFile }) => generateBarrel(dir, barrelFile));
 }
 
 export interface WatchOptions {
@@ -317,8 +364,8 @@ export function watchBarrels(
   const timeouts = new Map<string, NodeJS.Timeout>();
 
   // Initial update
-  for (const { dir } of barrelDirs) {
-    const result = generateBarrel(dir);
+  for (const { dir, barrelFile } of barrelDirs) {
+    const result = generateBarrel(dir, barrelFile);
     onUpdate?.(result);
   }
 
@@ -339,7 +386,7 @@ export function watchBarrels(
       timeouts.set(
         dir,
         setTimeout(() => {
-          const result = generateBarrel(dir);
+          const result = generateBarrel(dir, barrelFile);
           onUpdate?.(result);
           timeouts.delete(dir);
         }, debounceMs),
@@ -360,6 +407,7 @@ export function watchBarrels(
 // Re-export meta utilities for external use
 export {
   extractMetaFromFile,
+  hasMetaExport,
   mergeMetaProperties,
   generateMetaInterface,
   inferType,
