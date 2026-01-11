@@ -5,6 +5,7 @@ import {
   findBarrelDirs,
   getExpectedExports,
   generateBarrel,
+  toPascalCase,
 } from "./index.js";
 import { extractMetaFromFile } from "./meta.js";
 import {
@@ -156,9 +157,9 @@ export function createFile(
 
   const filePath = path.join(barrelDir, finalName);
 
-  // Generate component name from file name
+  // Generate component name from file name (convert kebab-case to PascalCase)
   const baseName = path.basename(finalName, path.extname(finalName));
-  const componentName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+  const componentName = toPascalCase(baseName);
 
   // Build meta object string
   const metaEntries = Object.entries(meta)
