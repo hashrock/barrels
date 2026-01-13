@@ -4,8 +4,10 @@ import { parseModule, generateCode } from "magicast";
 import { extractMetaFromFile, mergeMetaProperties, generateMetaInterface, hasMetaExport, } from "./meta.js";
 import { isExportNamedDeclaration, getModuleAst, } from "./ast.js";
 function getSourceValue(node) {
-    if (node.source?.type === "Literal" && typeof node.source.value === "string") {
-        return node.source.value;
+    const source = node.source;
+    // Handle both "Literal" (acorn) and "StringLiteral" (babel) node types
+    if (source && typeof source.value === "string") {
+        return source.value;
     }
     return undefined;
 }
