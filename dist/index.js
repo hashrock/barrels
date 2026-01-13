@@ -19,8 +19,10 @@ export function toPascalCase(str) {
     return camel.charAt(0).toUpperCase() + camel.slice(1);
 }
 function getSourceValue(node) {
-    if (node.source?.type === "Literal" && typeof node.source.value === "string") {
-        return node.source.value;
+    const source = node.source;
+    // Handle both "Literal" (acorn) and "StringLiteral" (babel) node types
+    if (source && typeof source.value === "string") {
+        return source.value;
     }
     return undefined;
 }

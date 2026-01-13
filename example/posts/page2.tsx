@@ -1,7 +1,7 @@
 export const meta = {
   title: "2番目の投稿",
   createdAt: "2026-01-08",
-  tags: ["deno", "barrel"],
+  tags: ["deno", "metacolle"]
 };
 
 export default function Page2() {
